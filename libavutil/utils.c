@@ -129,7 +129,7 @@ char *av_fourcc_make_string(char *buf, uint32_t fourcc)
         const int print_chr = (c >= '0' && c <= '9') ||
                               (c >= 'a' && c <= 'z') ||
                               (c >= 'A' && c <= 'Z') ||
-                              (c && strchr(". -_", c));
+                              (c && strchr(". -+_", c));
         const int len = snprintf(buf, buf_size, print_chr ? "%c" : "[%d]", c);
         if (len < 0)
             break;

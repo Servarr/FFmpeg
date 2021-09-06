@@ -26,6 +26,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "aac_ac3_parser.h"
+
+int avpriv_eac3atmos_parse_header(const uint8_t *buf, int buf_size, AACAC3ParseContext *hdr);
+
 /**
  * Extract the bitstream ID and the frame size from AC-3 data.
  */
