@@ -24,6 +24,7 @@
 #include "libavutil/common.h"
 #include "parser.h"
 #include "aac_ac3_parser.h"
+#include "ac3_parser.h"
 
 int ff_aac_ac3_parse(AVCodecParserContext *s1,
                      AVCodecContext *avctx,
@@ -56,6 +57,13 @@ get_next:
                 s->state=0;
                 i-= s->header_size -1;
                 s->remaining_size = len;
+                //av_log(NULL, AV_LOG_DEBUG, "ff_aac_ac3_parse2, i = %d, len = %d\n", i, len);
+                if (s->codec_id == AV_CODEC_ID_EAC3) {
+                    if (avpriv_eac3atmos_parse_header(&buf[i], len, s)){
+                        av_log(NULL, AV_LOG_DEBUG, "ff_aac_ac3_parse2, found Atmos\n");
+                        avctx->codec_tag = MKTAG('e', 'c', '+', '3');
+                    }
+                }
                 if(!new_frame_start || pc->index+i<=0){
                     s->remaining_size += i;
                     goto get_next;
