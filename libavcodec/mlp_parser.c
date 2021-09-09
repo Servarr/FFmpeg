@@ -189,6 +189,9 @@ static int mlp_parse(AVCodecParserContext *s,
                 avctx->channels       = mh.channels_thd_stream2;
                 avctx->channel_layout = mh.channel_layout_thd_stream2;
             }
+            if (mh.has_atmos) {
+                avctx->codec_tag = MKTAG('t', 'h', 'd', '+');
+            }
         }
         }
 
