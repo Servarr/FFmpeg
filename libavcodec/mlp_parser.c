@@ -186,6 +186,9 @@ static int mlp_parse(AVCodecParserContext *s,
             } else {
                 av_channel_layout_from_mask(&avctx->ch_layout, mh.channel_layout_thd_stream2);
             }
+            if (mh.has_atmos) {
+                avctx->codec_tag = MKTAG('t', 'h', 'd', '+');
+            }
         }
 
         if (!mh.is_vbr) /* Stream is CBR */
