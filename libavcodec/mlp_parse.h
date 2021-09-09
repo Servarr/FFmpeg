@@ -52,6 +52,7 @@ typedef struct MLPHeaderInfo
 
     int is_vbr;                             ///< Stream is VBR instead of CBR
     int peak_bitrate;                       ///< Peak bitrate for VBR, actual bitrate (==peak) for CBR
+    int has_atmos;                         ///< Specifies if 16 channel atmos data present
 
     int num_substreams;                     ///< Number of substreams within stream
 } MLPHeaderInfo;

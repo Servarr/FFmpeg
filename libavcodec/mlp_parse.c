@@ -85,7 +85,7 @@ static int mlp_get_major_sync_size(const uint8_t * buf, int bufsize)
 
 int ff_mlp_read_major_sync(void *log, MLPHeaderInfo *mh, GetBitContext *gb)
 {
-    int ratebits, channel_arrangement, header_size;
+    int ratebits, channel_arrangement, header_size, bits_read;
     uint16_t checksum;
 
     av_assert1(get_bits_count(gb) == 0);
@@ -159,7 +159,24 @@ int ff_mlp_read_major_sync(void *log, MLPHeaderInfo *mh, GetBitContext *gb)
 
     mh->num_substreams = get_bits(gb, 4);
 
-    skip_bits_long(gb, 4 + (header_size - 17) * 8);
+    // reserved
+    skip_bits(gb, 2);
+
+    // extended substream info
+    skip_bits(gb, 2);
+
+    bits_read = 4;
+
+    av_log(log, AV_LOG_DEBUG, "reading extended_substream_info\n");
+    if (mh->stream_type == 0xba) {
+      // substream_info
+      av_log(log, AV_LOG_DEBUG, "reading atmos bit\n");
+      mh->has_atmos = get_bits(gb, 1);
+      av_log(log, AV_LOG_DEBUG, "value of atmos bit %d\n", mh->has_atmos);
+      bits_read++;
+    }
+
+    skip_bits_long(gb, 4 + (header_size - 17) * 8 - bits_read);
 
     return 0;
 }
