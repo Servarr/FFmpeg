@@ -439,3 +439,94 @@ void ff_mov_write_chan(AVIOContext *pb, int64_t channel_layout)
     }
     avio_wb32(pb, 0);              // mNumberChannelDescriptions
 }
+
+int ff_mov_parse_dvcc_dvvc(AVFormatContext *s, AVStream *st, GetBitContext *gb)
+{
+    AVDOVIDecoderConfigurationRecord *dovi;
+    size_t dovi_size;
+    int ret;
+
+    if (gb->size_in_bits < 32)
+        return AVERROR_INVALIDDATA;
+
+    dovi = av_dovi_alloc(&dovi_size);
+    if (!dovi)
+        return AVERROR(ENOMEM);
+
+    dovi->dv_version_major = get_bits(gb, 8);
+    dovi->dv_version_minor = get_bits(gb, 8);
+
+    dovi->dv_profile        = get_bits(gb, 7);
+    dovi->dv_level          = get_bits(gb, 6);
+    dovi->rpu_present_flag  = get_bits1(gb);
+    dovi->el_present_flag   = get_bits1(gb);
+    dovi->bl_present_flag   = get_bits1(gb);
+    if (gb->size_in_bits >= 24 * 8) {
+        dovi->dv_bl_signal_compatibility_id = get_bits(gb, 4);
+    } else {
+        // 0 stands for None
+        // Dolby Vision V1.2.93 profiles and levels
+        dovi->dv_bl_signal_compatibility_id = 0;
+    }
+
+    ret = av_stream_add_side_data(st, AV_PKT_DATA_DOVI_CONF,
+                                  (uint8_t *)dovi, dovi_size);
+    if (ret < 0) {
+        av_free(dovi);
+        return ret;
+    }
+
+    av_log(s, AV_LOG_TRACE, "DOVI in dvcC/dvvC box, version: %d.%d, profile: %d, level: %d, "
+           "rpu flag: %d, el flag: %d, bl flag: %d, compatibility id: %d\n",
+           dovi->dv_version_major, dovi->dv_version_minor,
+           dovi->dv_profile, dovi->dv_level,
+           dovi->rpu_present_flag,
+           dovi->el_present_flag,
+           dovi->bl_present_flag,
+           dovi->dv_bl_signal_compatibility_id
+        );
+
+    return 0;
+}
+
+int ff_mov_put_dvcc_dvvc(AVFormatContext *s, uint8_t *out, int size, uint32_t *type,
+                         AVDOVIDecoderConfigurationRecord *dovi)
+{
+    PutBitContext pb;
+    init_put_bits(&pb, out, size);
+
+    if (size < MOV_DVCC_DVVC_SIZE)
+        return AVERROR(EINVAL);
+
+    if (dovi->dv_profile > 7)
+        *type = MKBETAG('d', 'v', 'v', 'C');
+    else
+        *type = MKBETAG('d', 'v', 'c', 'C');
+
+    put_bits(&pb, 8, dovi->dv_version_major);
+    put_bits(&pb, 8, dovi->dv_version_minor);
+    put_bits(&pb, 7, dovi->dv_profile);
+    put_bits(&pb, 6, dovi->dv_level);
+    put_bits(&pb, 1, dovi->rpu_present_flag);
+    put_bits(&pb, 1, dovi->el_present_flag);
+    put_bits(&pb, 1, dovi->bl_present_flag);
+    put_bits(&pb, 4, dovi->dv_bl_signal_compatibility_id);
+    put_bits(&pb, 28, 0); /* reserved */
+    put_bits32(&pb, 0); /* reserved */
+    put_bits32(&pb, 0); /* reserved */
+    put_bits32(&pb, 0); /* reserved */
+    put_bits32(&pb, 0); /* reserved */
+    flush_put_bits(&pb);
+
+    av_log(s, AV_LOG_DEBUG, "DOVI in %s box, version: %d.%d, profile: %d, level: %d, "
+           "rpu flag: %d, el flag: %d, bl flag: %d, compatibility id: %d\n",
+           dovi->dv_profile > 7 ? "dvvC" : "dvcC",
+           dovi->dv_version_major, dovi->dv_version_minor,
+           dovi->dv_profile, dovi->dv_level,
+           dovi->rpu_present_flag,
+           dovi->el_present_flag,
+           dovi->bl_present_flag,
+           dovi->dv_bl_signal_compatibility_id);
+
+    return put_bits_count(&pb) / 8;
+}

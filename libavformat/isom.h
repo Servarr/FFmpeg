@@ -27,6 +27,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "libavcodec/get_bits.h"
+#include "libavcodec/put_bits.h"
+
+#include "libavutil/dovi_meta.h"
 #include "libavutil/encryption_info.h"
 #include "libavutil/mastering_display_metadata.h"
 #include "libavutil/spherical.h"
@@ -367,6 +371,11 @@ int ff_mov_read_esds(AVFormatContext *fc, AVIOContext *pb);
 
 int ff_mov_read_stsd_entries(MOVContext *c, AVIOContext *pb, int entries);
 void ff_mov_write_chan(AVIOContext *pb, int64_t channel_layout);
+
+#define MOV_DVCC_DVVC_SIZE 24
+int ff_mov_parse_dvcc_dvvc(AVFormatContext *s, AVStream *st, GetBitContext *gb);
+int ff_mov_put_dvcc_dvvc(AVFormatContext *s, uint8_t *out, int size, uint32_t *type,
+                         AVDOVIDecoderConfigurationRecord *dovi);
 
 #define FF_MOV_FLAG_MFRA_AUTO -1
 #define FF_MOV_FLAG_MFRA_DTS 1
