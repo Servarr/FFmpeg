@@ -22,6 +22,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <inttypes.h>
 #include "atsc_a53.h"
 #include "bytestream.h"
 #include "dynamic_hdr10_plus.h"
@@ -179,6 +180,7 @@ static int decode_nal_sei_user_data_unregistered(HEVCSEIUnregistered *s,
 {
     AVBufferRef *buf_ref, **tmp;
     int size = bytestream2_get_bytes_left(gb);
+    uint64_t id;
 
     if (size < 16 || size >= INT_MAX - 1)
        return AVERROR_INVALIDDATA;
@@ -192,10 +194,22 @@ static int decode_nal_sei_user_data_unregistered(HEVCSEIUnregistered *s,
     if (!buf_ref)
         return AVERROR(ENOMEM);
 
+    id = bytestream2_get_be64u(gb);
+    bytestream2_skipu(gb, 8);
+
+    av_log(NULL, AV_LOG_DEBUG, "id: %" PRIx64 "\n", id);
+
+    if (id == 0x2ca2de09b51747db) {
+      av_log(NULL, AV_LOG_DEBUG, "x265 detected\n");
+      s->is_x265 = 1;
+    }
+
     bytestream2_get_bufferu(gb, buf_ref->data, size);
     buf_ref->data[size] = 0;
     buf_ref->size = size;
     s->buf_ref[s->nb_buf_ref++] = buf_ref;
+
+    av_log(NULL, AV_LOG_DEBUG, "unregistered data: %s\n", buf_ref->data);
 
     return 0;
 }
