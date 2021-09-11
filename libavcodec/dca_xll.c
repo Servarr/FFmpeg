@@ -765,6 +765,7 @@ static int chs_assemble_freq_bands(DCAXllDecoder *s, DCAXllChSet *c)
 static int parse_common_header(DCAXllDecoder *s)
 {
     int stream_ver, header_size, frame_size_nbits, nframesegs_log2;
+    uint8_t *curr, *end;
 
     // XLL extension sync word
     if (get_bits_long(&s->gb, 32) != DCA_SYNCWORD_XLL) {
@@ -1041,6 +1042,7 @@ static int parse_band_data(DCAXllDecoder *s)
 static int parse_frame(DCAXllDecoder *s, uint8_t *data, int size, DCAExssAsset *asset)
 {
     int ret;
+    unsigned int syncword;
 
     if ((ret = init_get_bits8(&s->gb, data, size)) < 0)
         return ret;
@@ -1052,10 +1054,16 @@ static int parse_frame(DCAXllDecoder *s, uint8_t *data, int size, DCAExssAsset *
         return ret;
     if ((ret = parse_band_data(s)) < 0)
         return ret;
-    if (ff_dca_seek_bits(&s->gb, s->frame_size * 8)) {
-        av_log(s->avctx, AV_LOG_ERROR, "Read past end of XLL frame\n");
-        return AVERROR_INVALIDDATA;
+    
+    align_bits4(&s->gb);
+    if (s->frame_size * 8 > s->gb.index) {
+      syncword = get_bits_long(&s->gb, 32);
+      av_log(s->avctx, AV_LOG_DEBUG, "XLL: %zu bits left [%#x]\n", s->frame_size * 8 - s->gb.index, syncword);
+      if (syncword == DCA_SYNCWORD_DTS_X || syncword == DCA_SYNCWORD_DTS_X_IMAX || syncword - 1 == DCA_SYNCWORD_DTS_X_IMAX) {
+        s->is_dts_x = 1;
+      }
     }
+
     return ret;
 }
 
@@ -1427,7 +1435,7 @@ int ff_dca_xll_filter_frame(DCAXllDecoder *s, AVFrame *frame)
     }
 
     avctx->bits_per_raw_sample = p->storage_bit_res;
-    avctx->profile = FF_PROFILE_DTS_HD_MA;
+    avctx->profile = s->is_dts_x ? FF_PROFILE_DTS_X : FF_PROFILE_DTS_HD_MA;
     avctx->bit_rate = 0;
 
     frame->nb_samples = nsamples = s->nframesamples << (s->nfreqbands - 1);
