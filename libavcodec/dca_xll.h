@@ -130,6 +130,7 @@ typedef struct DCAXllDecoder {
     int     nactivechsets;  ///< Number of active channel sets to decode
 
     int     hd_stream_id;   ///< Previous DTS-HD stream ID for detecting changes
+    int     is_dts_x;       ///< Flag for DTS:X presence
 
     uint8_t     *pbr_buffer;        ///< Peak bit rate (PBR) smoothing buffer
     int         pbr_length;         ///< Length in bytes of data currently buffered
