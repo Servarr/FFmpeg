@@ -41,6 +41,7 @@ const AVProfile ff_dca_profiles[] = {
     { FF_PROFILE_DTS_96_24,   "DTS 96/24"   },
     { FF_PROFILE_DTS_HD_HRA,  "DTS-HD HRA"  },
     { FF_PROFILE_DTS_HD_MA,   "DTS-HD MA"   },
+    { FF_PROFILE_DTS_X,       "DTS:X"       },
     { FF_PROFILE_DTS_EXPRESS, "DTS Express" },
     { FF_PROFILE_UNKNOWN },
 };
