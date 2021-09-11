@@ -62,6 +62,7 @@ typedef struct HEVCSEIA53Caption {
 typedef struct HEVCSEIUnregistered {
     AVBufferRef **buf_ref;
     int nb_buf_ref;
+    int is_x265;
 } HEVCSEIUnregistered;
 
 typedef struct HEVCSEIMasteringDisplay {

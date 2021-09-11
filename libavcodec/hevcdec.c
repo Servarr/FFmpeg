@@ -3631,6 +3631,9 @@ static av_cold int hevc_decode_init(AVCodecContext *avctx)
     if (!avctx->internal->is_copy) {
         if (avctx->extradata_size > 0 && avctx->extradata) {
             ret = hevc_decode_extradata(s, avctx->extradata, avctx->extradata_size, 1);
+            av_log(avctx, AV_LOG_DEBUG, "decoded sei, is_x265:%d\n", s->sei.unregistered.is_x265);
+            if (s->sei.unregistered.is_x265)
+              avctx->codec_tag = MKTAG('x', '2', '6', '5');
             if (ret < 0) {
                 return ret;
             }
