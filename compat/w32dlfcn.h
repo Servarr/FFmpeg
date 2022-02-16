@@ -22,9 +22,31 @@
 #ifdef _WIN32
 #include <windows.h>
 #include "config.h"
-#if (_WIN32_WINNT < 0x0602) || HAVE_WINRT
 #include "libavutil/wchar_filename.h"
-#endif
+
+static inline wchar_t *get_module_filename(HMODULE module)
+{
+    wchar_t *path = NULL, *new_path = NULL;
+    DWORD path_size = 0, path_len = 0;
+
+    do {
+        path_size = path_size ? 2 * path_size : MAX_PATH;
+        new_path = av_realloc_array(path, path_size, sizeof *path);
+        if (!new_path) {
+            av_free(path);
+            return NULL;
+        }
+        path = new_path;
+        path_len = GetModuleFileNameW(module, path, path_size);
+    } while (path_len && path_size <= 32768 && path_size <= path_len);
+
+    if (!path_len) {
+        av_free(path);
+        return NULL;
+    }
+    return path;
+}
+
 /**
  * Safe function used to open dynamic libs. This attempts to improve program security
  * by removing the current directory from the dll search path. Only dll's found in the
@@ -34,29 +56,53 @@
  */
 static inline HMODULE win32_dlopen(const char *name)
 {
+    wchar_t *name_w = NULL;
+    if (utf8towchar(name, &name_w))
+        name_w = NULL;
 #if _WIN32_WINNT < 0x0602
     // Need to check if KB2533623 is available
     if (!GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetDefaultDllDirectories")) {
         HMODULE module = NULL;
-        wchar_t *path = NULL, *name_w = NULL;
-        DWORD pathlen;
-        if (utf8towchar(name, &name_w))
+        wchar_t *path = NULL, *new_path = NULL;
+        DWORD pathlen, pathsize, namelen;
+        if (!name_w)
             goto exit;
-        path = (wchar_t *)av_calloc(MAX_PATH, sizeof(wchar_t));
+        namelen = wcslen(name_w);
         // Try local directory first
-        pathlen = GetModuleFileNameW(NULL, path, MAX_PATH);
-        pathlen = wcsrchr(path, '\\') - path;
-        if (pathlen == 0 || pathlen + wcslen(name_w) + 2 > MAX_PATH)
+        path = get_module_filename(NULL);
+        if (!path)
             goto exit;
-        path[pathlen] = '\\';
+        new_path = wcsrchr(path, '\\');
+        if (!new_path)
+            goto exit;
+        pathlen = new_path - path;
+        pathsize = pathlen + namelen + 2;
+        new_path = av_realloc_array(path, pathsize, sizeof *path);
+        if (!new_path)
+            goto exit;
+        path = new_path;
         wcscpy(path + pathlen + 1, name_w);
         module = LoadLibraryExW(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
         if (module == NULL) {
             // Next try System32 directory
-            pathlen = GetSystemDirectoryW(path, MAX_PATH);
-            if (pathlen == 0 || pathlen + wcslen(name_w) + 2 > MAX_PATH)
+            pathlen = GetSystemDirectoryW(path, pathsize);
+            if (!pathlen)
                 goto exit;
-            path[pathlen] = '\\';
+            // Buffer is not enough in two cases:
+            // 1. system directory + \ + module name
+            // 2. system directory even without module name.
+            if (pathlen + namelen + 2 > pathsize) {
+                pathsize = pathlen + namelen + 2;
+                new_path = av_realloc_array(path, pathsize, sizeof *path);
+                if (!new_path)
+                    goto exit;
+                path = new_path;
+                // Query again to handle case #2.
+                pathlen = GetSystemDirectoryW(path, pathsize);
+                if (!pathlen)
+                    goto exit;
+            }
+            path[pathlen] = L'\\';
             wcscpy(path + pathlen + 1, name_w);
             module = LoadLibraryExW(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
         }
@@ -73,15 +119,17 @@ exit:
 #   define LOAD_LIBRARY_SEARCH_SYSTEM32        0x00000800
 #endif
 #if HAVE_WINRT
-    wchar_t *name_w = NULL;
     int ret;
-    if (utf8towchar(name, &name_w))
+    if (!name_w)
         return NULL;
     ret = LoadPackagedLibrary(name_w, 0);
     av_free(name_w);
     return ret;
 #else
-    return LoadLibraryExA(name, NULL, LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+    /* filename may be be in CP_ACP */
+    if (!name_w)
+        return LoadLibraryExA(name, NULL, LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+    return LoadLibraryExW(name_w, NULL, LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
 #endif
 }
 #define dlopen(name, flags) win32_dlopen(name)
