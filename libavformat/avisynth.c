@@ -34,6 +34,7 @@
 /* Platform-specific directives. */
 #ifdef _WIN32
   #include "compat/w32dlfcn.h"
+  #include "libavutil/wchar_filename.h"
   #undef EXTERN_C
   #define AVISYNTH_LIB "avisynth"
 #else
@@ -572,8 +573,7 @@ static int avisynth_open_file(AVFormatContext *s)
     AVS_Value arg, val;
     int ret;
 #ifdef _WIN32
-    char filename_ansi[MAX_PATH * 4];
-    wchar_t filename_wc[MAX_PATH * 4];
+    char *filename_ansi = NULL;
 #endif
 
     if (ret = avisynth_context_create(s))
@@ -581,10 +581,12 @@ static int avisynth_open_file(AVFormatContext *s)
 
 #ifdef _WIN32
     /* Convert UTF-8 to ANSI code page */
-    MultiByteToWideChar(CP_UTF8, 0, s->url, -1, filename_wc, MAX_PATH * 4);
-    WideCharToMultiByte(CP_THREAD_ACP, 0, filename_wc, -1, filename_ansi,
-                        MAX_PATH * 4, NULL, NULL);
+    if (utf8toansi(s->url, &filename_ansi)) {
+        ret = AVERROR_UNKNOWN;
+        goto fail;
+    }
     arg = avs_new_value_string(filename_ansi);
+    av_free(filename_ansi);
 #else
     arg = avs_new_value_string(s->url);
 #endif
