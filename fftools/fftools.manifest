@@ -3,8 +3,10 @@
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity type="win32" name="FFmpeg" version="1.0.0.0"/>
   <application xmlns="urn:schemas-microsoft-com:asm.v3">
-    <windowsSettings xmlns:ws2016="http://schemas.microsoft.com/SMI/2016/WindowsSettings">
+    <windowsSettings xmlns:ws2016="http://schemas.microsoft.com/SMI/2016/WindowsSettings"
+                     xmlns:ws2019="http://schemas.microsoft.com/SMI/2019/WindowsSettings">
       <ws2016:longPathAware>true</ws2016:longPathAware>
+      <ws2019:activeCodePage>UTF-8</ws2019:activeCodePage>
     </windowsSettings>
   </application>
 </assembly>
