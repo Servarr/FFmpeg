@@ -15,6 +15,11 @@ OBJS-ffmpeg +=                  \
     fftools/ffmpeg_mux.o        \
     fftools/ffmpeg_opt.o        \
 
+# Windows resource files
+OBJS-ffmpeg-$(HAVE_GNU_WINDRES) += fftools/manifest.o
+OBJS-ffplay-$(HAVE_GNU_WINDRES) += fftools/manifest.o
+OBJS-ffprobe-$(HAVE_GNU_WINDRES) += fftools/manifest.o
+
 define DOFFTOOL
 OBJS-$(1) += fftools/cmdutils.o fftools/opt_common.o fftools/$(1).o $(OBJS-$(1)-yes)
 $(1)$(PROGSSUF)_g$(EXESUF): $$(OBJS-$(1))
