@@ -62,6 +62,7 @@
 #endif
 #ifdef _WIN32
 #include <windows.h>
+#include "compat/w32dlfcn.h"
 #endif
 
 static int init_report(const char *env);
@@ -2065,6 +2066,9 @@ FILE *get_preset_file(char *filename, size_t filename_size,
 {
     FILE *f = NULL;
     int i;
+#if HAVE_GETMODULEHANDLE && defined(_WIN32)
+    char *datadir = NULL;
+#endif
     const char *base[3] = { getenv("FFMPEG_DATADIR"),
                             getenv("HOME"),
                             FFMPEG_DATADIR, };
@@ -2074,19 +2078,31 @@ FILE *get_preset_file(char *filename, size_t filename_size,
         f = fopen(filename, "r");
     } else {
 #if HAVE_GETMODULEHANDLE && defined(_WIN32)
-        char datadir[MAX_PATH], *ls;
+        wchar_t *datadir_w = get_module_filename(NULL);
         base[2] = NULL;
 
-        if (GetModuleFileNameA(GetModuleHandleA(NULL), datadir, sizeof(datadir) - 1))
+        if (wchartoansi(datadir_w, &datadir))
+            datadir = NULL;
+        av_free(datadir_w);
+
+        if (datadir)
         {
-            for (ls = datadir; ls < datadir + strlen(datadir); ls++)
+            char *ls;
+            for (ls = datadir; *ls; ls++)
                 if (*ls == '\\') *ls = '/';
 
             if (ls = strrchr(datadir, '/'))
             {
-                *ls = 0;
-                strncat(datadir, "/ffpresets",  sizeof(datadir) - 1 - strlen(datadir));
-                base[2] = datadir;
+                ptrdiff_t datadir_len = ls - datadir;
+                size_t desired_size = datadir_len + strlen("/ffpresets") + 1;
+                char *new_datadir = av_realloc_array(
+                    datadir, desired_size, sizeof *datadir);
+                if (new_datadir) {
+                    datadir = new_datadir;
+                    datadir[datadir_len] = 0;
+                    strncat(datadir, "/ffpresets",  desired_size - 1 - datadir_len);
+                    base[2] = datadir;
+                }
             }
         }
 #endif
@@ -2106,6 +2122,9 @@ FILE *get_preset_file(char *filename, size_t filename_size,
         }
     }
 
+#if HAVE_GETMODULEHANDLE && defined(_WIN32)
+    av_free(datadir);
+#endif
     return f;
 }
 
