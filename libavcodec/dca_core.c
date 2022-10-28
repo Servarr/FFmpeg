@@ -2374,7 +2374,7 @@ int ff_dca_core_filter_frame(DCACoreDecoder *s, AVFrame *frame)
     // Set profile, bit rate, etc
     if (s->ext_audio_mask & DCA_EXSS_MASK)
         avctx->profile = FF_PROFILE_DTS_HD_HRA;
-    else if (s->ext_audio_mask & (DCA_CSS_XXCH | DCA_CSS_XCH))
+    else if (s->es_format | (s->ext_audio_mask & (DCA_CSS_XXCH | DCA_CSS_XCH)))
         avctx->profile = FF_PROFILE_DTS_ES;
     else if (s->ext_audio_mask & DCA_CSS_X96)
         avctx->profile = FF_PROFILE_DTS_96_24;
