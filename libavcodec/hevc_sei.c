@@ -194,7 +194,7 @@ static int decode_nal_sei_user_data_unregistered(HEVCSEIUnregistered *s,
     if (!buf_ref)
         return AVERROR(ENOMEM);
 
-    id = bytestream2_get_be64u(gb, 64);
+    id = bytestream2_get_be64u(gb);
     bytestream2_skipu(gb, 8);
 
     av_log(NULL, AV_LOG_DEBUG, "id: %" PRIx64 "\n", id);
